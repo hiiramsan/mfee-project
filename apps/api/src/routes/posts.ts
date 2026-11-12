@@ -1,169 +1,20 @@
 import express from 'express';
-import { getCategory } from './categories';
-
-export type Post = {
-  id: string;
-  title: string;
-  image: string;
-  description: string;
-  category: string;
-  comments: string[];
-};
-
-export type Comment = {
-  id: string;
-  author: string;
-  content: string;
-};
-
-const posts: Post[] = [];
-
-const comments: Comment[] = [];
+import postController from '../controllers/post';
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  res.status(200).json(posts);
-});
+router.get('/', postController.getPosts);
 
-router.post('/', (req, res) => {
-  const { title, image, description, category } = req.body;
+router.post('/', postController.savePost);
 
-  if (!title || !title.trim()) {
-    return res.status(400).json({ message: 'title is required!' });
-  }
+router.get('/category/:category', postController.getPostsByCategory);
 
-  if (!description || !description.trim()) {
-    return res.status(400).json({ message: 'Description is required!' });
-  }
+router.get('/:id', postController.getPostById);
 
-  if (category && !getCategory(category)) {
-    return res.status(400).json({ message: 'Invalid category!' });
-  }
+router.post('/:id/comments', postController.savePostComment);
 
-  const newPost: Post = {
-    id: Date.now().toString(),
-    title: title.trim(),
-    image: image || '',
-    description: description.trim(),
-    category: category || '',
-    comments: []
-  };
+router.delete('/:id', postController.deletePostById);
 
-  posts.push(newPost);
-
-  return res.status(201).json(newPost);
-});
-
-router.get('/category/:category', (req, res) => {
-  const { category } = req.params;
-
-  const filteredPosts = posts.filter((p) => p.category === category);
-
-  res.status(200).json(filteredPosts);
-});
-
-router.get('/:id', (req, res) => {
-  const { id } = req.params;
-
-  const post = posts.find((p) => p.id === id);
-
-  if (!post) {
-    return res.status(404).json({ message: 'Post not found!' });
-  }
-
-  const category = getCategory(post.category);
-
-  const postComments = post.comments
-    .map((commentId) => comments.find((comment) => comment.id === commentId))
-    .filter((comment): comment is Comment => comment !== undefined);
-
-  res.status(200).json({ ...post, category, comments: postComments });
-});
-
-router.post('/:id/comments', (req, res) => {
-  const { author, content } = req.body;
-  const { id } = req.params;
-
-  const post = posts.find((p) => p.id === id);
-
-  if (!post) {
-    return res.status(404).json({ message: 'Post not found' });
-  }
-
-  if (!author || !author.trim()) {
-    return res.status(400).json({ message: 'Author cannot be null' });
-  }
-
-  if (!content || !content.trim()) {
-    return res.status(400).json({ message: 'Content cannot be null' });
-  }
-
-  const newComment: Comment = {
-    id: Date.now().toString(),
-    author: author.trim(),
-    content: content.trim()
-  };
-
-  comments.push(newComment);
-  post.comments.push(newComment.id);
-
-  return res.status(201).json(newComment);
-});
-
-router.delete('/:id', (req, res) => {
-  const { id } = req.params;
-
-  const postIndex = posts.findIndex((p) => p.id === id);
-
-  if (postIndex === -1) {
-    return res.status(404).json({ message: `Post with id ${id} not found!` });
-  }
-
-  posts.splice(postIndex, 1);
-
-  res.status(200).send();
-});
-
-router.patch('/:id', (req, res) => {
-  const { id } = req.params;
-
-  const postIndex = posts.findIndex((p) => p.id === id);
-
-  if (postIndex === -1) {
-    return res.status(404).json({ message: `Post with id ${id} not found!` });
-  }
-
-  const { title, description, image, category } = req.body;
-
-  const updatedPost = { ...posts[postIndex] };
-
-  if (title !== undefined) {
-    if (!title || !title.trim()) {
-      return res.status(400).json({ message: 'Title cannot be empty!' });
-    }
-    updatedPost.title = title.trim();
-  }
-
-  if (description !== undefined) {
-    if (!description || !description.trim()) {
-      return res.status(400).json({ message: 'Description cannot be empty!' });
-    }
-    updatedPost.description = description.trim();
-  }
-
-  if (image !== undefined) updatedPost.image = image || '';
-
-  if (category !== undefined) {
-    if (category && !getCategory(category)) {
-      return res.status(400).json({ message: 'Invalid category!' });
-    }
-    updatedPost.category = category || '';
-  }
-
-  posts[postIndex] = updatedPost;
-
-  return res.status(200).json(updatedPost);
-});
+router.patch('/:id', postController.editPostById);
 
 export default router;
